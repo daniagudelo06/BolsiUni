@@ -73,6 +73,15 @@ export const EXPENSE_CATEGORIES: Record<ExpenseCategoryId, ExpenseCategoryInfo> 
     type: 'expense',
     description: 'Spotify Estudiantes, Netflix, Canva, almacenamiento'
   },
+  vivienda: {
+    id: 'vivienda',
+    name: 'Vivienda y arriendo',
+    emoji: '🏠',
+    color: '#0d9488', // Teal
+    bgLight: 'bg-teal-500/10 text-teal-600 dark:text-teal-400 border-teal-200 dark:border-teal-800/40',
+    type: 'expense',
+    description: 'Arriendo de pieza, apartamento, residencia estudiantil, servicios'
+  },
   salud: {
     id: 'salud',
     name: 'Salud y bienestar',
@@ -157,3 +166,28 @@ export function getCategoryInfo(categoryId: CategoryId): CategoryInfo {
     description: 'Categoría general'
   };
 }
+
+/**
+ * Mapea el nombre de categoría retornado por Claude a un CategoryId interno de EduPlata
+ */
+export function mapClaudeCategoryToCategoryId(rawCategory: string, movementType?: 'gasto' | 'ingreso'): CategoryId {
+  const norm = (rawCategory || '').toLowerCase().trim();
+
+  if (norm.includes('comida') || norm.includes('almuerzo') || norm.includes('empanada')) return 'comida';
+  if (norm.includes('transporte') || norm.includes('pasaje') || norm.includes('bus') || norm.includes('metro')) return 'transporte';
+  if (norm.includes('fotocopia') || norm.includes('útil') || norm.includes('util')) return 'fotocopias';
+  if (norm.includes('suscrip')) return 'suscripciones';
+  if (norm.includes('salida') || norm.includes('rumba') || norm.includes('ocio')) return 'ocio';
+  if (norm.includes('vivienda') || norm.includes('arriendo') || norm.includes('servicio')) return 'vivienda';
+  if (norm.includes('salud')) return 'salud';
+  if (norm.includes('matr') || norm.includes('u\b')) return 'matricula';
+
+  if (norm.includes('mesada')) return 'mesada';
+  if (norm.includes('trabajo') || norm.includes('freelance') || norm.includes('sueldo')) return 'trabajo';
+  if (norm.includes('beca') || norm.includes('auxilio')) return 'auxilio';
+
+  // Por tipo si no encaja
+  if (movementType === 'ingreso') return 'otros_ingresos';
+  return 'otros';
+}
+

@@ -20,23 +20,28 @@ import { GoalModal } from './components/GoalModal';
 import { GoalDepositModal } from './components/GoalDepositModal';
 import { BalanceAdjustmentModal } from './components/BalanceAdjustmentModal';
 import { BudgetModal } from './components/BudgetModal';
+import { QuickChatView } from './components/views/QuickChatView';
+import { CalendarView } from './components/views/CalendarView';
 import { 
   ActiveTab, 
   AIAnalysisResult, 
   BudgetConfig, 
   SavingsGoal, 
   SemesterConfig,
+  ScheduledPayment,
   Transaction, 
   UserProfile 
 } from './types';
 import { 
   INITIAL_BUDGET, 
   INITIAL_SAVINGS_GOALS, 
+  INITIAL_SCHEDULED_PAYMENTS,
   INITIAL_SEMESTER_CONFIG,
   INITIAL_TRANSACTIONS, 
   INITIAL_USER_PROFILE,
   SAMPLE_BUDGET,
   SAMPLE_SAVINGS_GOALS,
+  SAMPLE_SCHEDULED_PAYMENTS,
   SAMPLE_SEMESTER_CONFIG,
   SAMPLE_TRANSACTIONS,
   SAMPLE_USER_PROFILE
@@ -44,6 +49,7 @@ import {
 import { getStoredApiKey } from './services/gemini';
 import { generateFinancialPDFReport } from './services/pdfReport';
 import { exportTransactionsToExcel } from './services/excelReport';
+import { getNextRecurringDate } from './utils/calendarUtils';
 import { Plus } from 'lucide-react';
 
 const STORAGE_KEYS = {
@@ -53,7 +59,8 @@ const STORAGE_KEYS = {
   PROFILE: 'bolsiuni_v2_profile',
   AI_ANALYSIS: 'bolsiuni_v2_ai_analysis',
   DARK_MODE: 'bolsiuni_dark_mode',
-  SEMESTER: 'bolsiuni_v2_semester'
+  SEMESTER: 'bolsiuni_v2_semester',
+  SCHEDULED_PAYMENTS: 'bolsiuni_v2_scheduled_payments'
 };
 
 export default function App() {
@@ -179,6 +186,28 @@ export default function App() {
       console.error(e);
     }
   }, [semesterConfig]);
+
+  // Pagos programados y calendario de pagos
+  const [scheduledPayments, setScheduledPayments] = useState<ScheduledPayment[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.SCHEDULED_PAYMENTS);
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      console.error(e);
+    }
+    return INITIAL_SCHEDULED_PAYMENTS;
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEYS.SCHEDULED_PAYMENTS, JSON.stringify(scheduledPayments));
+    } catch (e) {
+      console.error(e);
+    }
+  }, [scheduledPayments]);
+
+  // Mensaje precargado desde el Inicio para el Chat Rápido
+  const [initialChatMessage, setInitialChatMessage] = useState<string>('');
 
   // Último análisis de IA
   const [aiAnalysis, setAiAnalysis] = useState<AIAnalysisResult | null>(() => {
@@ -336,6 +365,59 @@ export default function App() {
     setIsBalanceModalOpen(false);
   };
 
+  // Manejo de Pagos Programados
+  const handleAddScheduledPayment = (paymentData: Omit<ScheduledPayment, 'id' | 'createdAt'>) => {
+    const newPayment: ScheduledPayment = {
+      ...paymentData,
+      id: `pay-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      createdAt: Date.now()
+    };
+    setScheduledPayments((prev) => [...prev, newPayment]);
+  };
+
+  const handleUpdateScheduledPayment = (payment: ScheduledPayment) => {
+    setScheduledPayments((prev) => prev.map((p) => (p.id === payment.id ? payment : p)));
+  };
+
+  const handleDeleteScheduledPayment = (id: string) => {
+    setScheduledPayments((prev) => prev.filter((p) => p.id !== id));
+  };
+
+  // Botón "Ya lo pagué": registra como gasto real hoy y si es recurrente genera el siguiente automáticamente
+  const handlePayScheduledPayment = (payment: ScheduledPayment) => {
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const newTx: Transaction = {
+      id: `tx-pay-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      type: 'expense',
+      amount: payment.amount,
+      category: payment.categoryId || 'otros',
+      date: todayStr,
+      note: `Pago: ${payment.description}`,
+      createdAt: Date.now()
+    };
+    setTransactions((prev) => [newTx, ...prev]);
+
+    if (payment.recurrence === 'mensual' || payment.recurrence === 'semanal') {
+      const nextDueDate = getNextRecurringDate(payment.dueDate, payment.recurrence);
+      const nextPayment: ScheduledPayment = {
+        ...payment,
+        id: `pay-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+        dueDate: nextDueDate,
+        isPaid: false,
+        paidAt: undefined,
+        createdAt: Date.now()
+      };
+      setScheduledPayments((prev) => [
+        ...prev.filter((p) => p.id !== payment.id),
+        nextPayment
+      ]);
+    } else {
+      setScheduledPayments((prev) =>
+        prev.map((p) => (p.id === payment.id ? { ...p, isPaid: true, paidAt: todayStr } : p))
+      );
+    }
+  };
+
   // Restablecer Datos de Ejemplo
   const handleResetSampleData = () => {
     setTransactions(SAMPLE_TRANSACTIONS);
@@ -343,6 +425,7 @@ export default function App() {
     setGoals(SAMPLE_SAVINGS_GOALS);
     setUserProfile(SAMPLE_USER_PROFILE);
     setSemesterConfig(SAMPLE_SEMESTER_CONFIG);
+    setScheduledPayments(SAMPLE_SCHEDULED_PAYMENTS);
     setAiAnalysis(null);
   };
 
@@ -350,6 +433,7 @@ export default function App() {
   const handleClearAllData = () => {
     setTransactions([]);
     setGoals([]);
+    setScheduledPayments([]);
     setBudget({
       monthlyIncomeTarget: 0,
       monthlyExpenseLimit: 0,
@@ -360,6 +444,7 @@ export default function App() {
         matricula: 0,
         ocio: 0,
         suscripciones: 0,
+        vivienda: 0,
         salud: 0,
         otros: 0
       }
@@ -375,6 +460,7 @@ export default function App() {
     if (data.goals) setGoals(data.goals);
     if (data.userProfile) setUserProfile(data.userProfile);
     if (data.semester) setSemesterConfig(data.semester);
+    if (data.scheduledPayments) setScheduledPayments(data.scheduledPayments);
     if (data.aiAnalysis) setAiAnalysis(data.aiAnalysis);
   };
 
@@ -409,6 +495,12 @@ export default function App() {
             goals={goals}
             userProfile={userProfile}
             semesterConfig={semesterConfig}
+            scheduledPayments={scheduledPayments}
+            onPayPayment={handlePayScheduledPayment}
+            onQuickChatMessage={(msg) => {
+              setInitialChatMessage(msg);
+              setActiveTab('chat');
+            }}
             onUpdateUserName={(name) => setUserProfile((prev) => ({ ...prev, name }))}
             onUpdateProfile={(partial) => setUserProfile((prev) => ({ ...prev, ...partial }))}
             onOpenAddModal={(defaultType) => {
@@ -428,6 +520,31 @@ export default function App() {
             isShowingSampleData={transactions.length > 0 && transactions[0].id === 'tx-1'}
             onExportPDF={handleExportPDF}
             onExportExcel={handleExportExcel}
+          />
+        )}
+
+        {activeTab === 'chat' && (
+          <QuickChatView
+            transactions={transactions}
+            onAddTransaction={(tx) => handleSaveTransaction(tx)}
+            onAddScheduledPayment={handleAddScheduledPayment}
+            onOpenManualTransactionModal={() => {
+              setSelectedTx(null);
+              setIsTxModalOpen(true);
+            }}
+            initialMessageToSend={initialChatMessage}
+            onClearInitialMessage={() => setInitialChatMessage('')}
+          />
+        )}
+
+        {activeTab === 'calendar' && (
+          <CalendarView
+            payments={scheduledPayments}
+            onAddPayment={handleAddScheduledPayment}
+            onUpdatePayment={handleUpdateScheduledPayment}
+            onDeletePayment={handleDeleteScheduledPayment}
+            onPayPayment={handlePayScheduledPayment}
+            currentBalance={currentBalance}
           />
         )}
 
@@ -502,7 +619,8 @@ export default function App() {
               budget,
               goals,
               userProfile,
-              semester: semesterConfig
+              semester: semesterConfig,
+              scheduledPayments
             }}
             onImportData={handleImportData}
           />

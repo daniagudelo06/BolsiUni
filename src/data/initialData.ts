@@ -6,7 +6,7 @@
  * Contextualizados para un estudiante universitario en Colombia
  */
 
-import { BudgetConfig, SavingsGoal, Transaction, UserProfile, SemesterConfig } from '../types';
+import { BudgetConfig, SavingsGoal, Transaction, UserProfile, SemesterConfig, ScheduledPayment } from '../types';
 
 // Helper para calcular fechas relativas
 const addDaysToToday = (days: number): string => {
@@ -69,6 +69,7 @@ export const INITIAL_BUDGET: BudgetConfig = {
     fotocopias: 0,
     ocio: 0,
     suscripciones: 0,
+    vivienda: 0,
     salud: 0,
     matricula: 0,
     otros: 0
@@ -78,6 +79,8 @@ export const INITIAL_BUDGET: BudgetConfig = {
 export const INITIAL_TRANSACTIONS: Transaction[] = [];
 
 export const INITIAL_SAVINGS_GOALS: SavingsGoal[] = [];
+
+export const INITIAL_SCHEDULED_PAYMENTS: ScheduledPayment[] = [];
 
 // Datos de ejemplo (botón "Restablecer datos de ejemplo" en Configuración)
 export const SAMPLE_USER_PROFILE: UserProfile = {
@@ -96,11 +99,48 @@ export const SAMPLE_BUDGET: BudgetConfig = {
     fotocopias: 60000,
     ocio: 120000,
     suscripciones: 35000,
+    vivienda: 0,
     salud: 30000,
     matricula: 0,
     otros: 65000
   }
 };
+
+export const SAMPLE_SCHEDULED_PAYMENTS: ScheduledPayment[] = [
+  {
+    id: 'pay-1',
+    description: 'Arriendo habitación universitaria',
+    amount: 650000,
+    category: 'Vivienda',
+    categoryId: 'vivienda',
+    dueDate: addDaysToToday(5),
+    recurrence: 'mensual',
+    reminderDaysBefore: 2,
+    createdAt: Date.now() - 86400000 * 5
+  },
+  {
+    id: 'pay-2',
+    description: 'Spotify Plan Universitario',
+    amount: 9900,
+    category: 'Suscripciones',
+    categoryId: 'suscripciones',
+    dueDate: addDaysToToday(8),
+    recurrence: 'mensual',
+    reminderDaysBefore: 1,
+    createdAt: Date.now() - 86400000 * 10
+  },
+  {
+    id: 'pay-3',
+    description: 'Recarga tarjeta de transporte Masivo',
+    amount: 40000,
+    category: 'Transporte',
+    categoryId: 'transporte',
+    dueDate: addDaysToToday(12),
+    recurrence: 'semanal',
+    reminderDaysBefore: 1,
+    createdAt: Date.now() - 86400000 * 2
+  }
+];
 
 export const SAMPLE_SEMESTER_CONFIG: SemesterConfig = {
   startDate: addDaysToToday(-45),

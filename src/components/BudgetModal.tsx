@@ -32,6 +32,7 @@ export const BudgetModal: React.FC<BudgetModalProps> = ({
     matricula: '',
     ocio: '',
     suscripciones: '',
+    vivienda: '',
     salud: '',
     otros: ''
   });

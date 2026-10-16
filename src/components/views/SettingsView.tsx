@@ -39,6 +39,7 @@ import {
   IncomeFrequency, 
   SavingsGoal, 
   SemesterConfig, 
+  ScheduledPayment,
   Transaction, 
   UserProfile 
 } from '../../types';
@@ -59,6 +60,7 @@ interface SettingsViewProps {
     goals: SavingsGoal[];
     userProfile: UserProfile;
     semester?: SemesterConfig;
+    scheduledPayments?: ScheduledPayment[];
   };
   onImportData: (data: any) => void;
 }

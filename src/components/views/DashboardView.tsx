@@ -43,10 +43,12 @@ import {
   YAxis, 
   CartesianGrid 
 } from 'recharts';
-import { ActiveTab, BudgetConfig, MovementType, SavingsGoal, SemesterConfig, Transaction, UserProfile } from '../../types';
+import { ActiveTab, BudgetConfig, MovementType, SavingsGoal, SemesterConfig, ScheduledPayment, Transaction, UserProfile } from '../../types';
 import { formatCOP, formatDate } from '../../utils/formatters';
 import { getCategoryInfo } from '../../utils/categories';
 import { RunwayCard } from '../RunwayCard';
+import { UpcomingPaymentsCard } from '../UpcomingPaymentsCard';
+import { QuickChatBar } from '../QuickChatBar';
 
 interface DashboardViewProps {
   transactions: Transaction[];
@@ -54,6 +56,9 @@ interface DashboardViewProps {
   goals: SavingsGoal[];
   userProfile: UserProfile;
   semesterConfig: SemesterConfig;
+  scheduledPayments?: ScheduledPayment[];
+  onPayPayment?: (payment: ScheduledPayment) => void;
+  onQuickChatMessage?: (msg: string) => void;
   onUpdateUserName?: (name: string) => void;
   onUpdateProfile?: (profile: Partial<UserProfile>) => void;
   onOpenAddModal: (defaultType?: MovementType) => void;
@@ -75,6 +80,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   goals,
   userProfile,
   semesterConfig,
+  scheduledPayments = [],
+  onPayPayment,
+  onQuickChatMessage,
   onUpdateUserName,
   onUpdateProfile,
   onOpenAddModal,
@@ -470,6 +478,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
       )}
 
+      {/* BARRA DE CHAT RÁPIDO ESTILO WHATSAPP (ACCESIBLE DESDE EL INICIO) */}
+      <QuickChatBar
+        onSubmitMessage={(msg) => {
+          if (onQuickChatMessage) onQuickChatMessage(msg);
+          else onNavigateTab('chat');
+        }}
+        onOpenFullChat={() => onNavigateTab('chat')}
+      />
+
       {/* TARJETAS PRINCIPALES DE MÉTRICAS */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         
@@ -648,6 +665,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         semesterConfig={semesterConfig}
         onNavigateToSettings={() => onNavigateTab('settings')}
         onOpenAddModal={onOpenAddModal}
+      />
+
+      {/* TARJETA EN EL INICIO: PRÓXIMOS PAGOS */}
+      <UpcomingPaymentsCard
+        payments={scheduledPayments}
+        currentBalance={balance}
+        onNavigateToCalendar={() => onNavigateTab('calendar')}
+        onPayPayment={(p) => onPayPayment && onPayPayment(p)}
       />
 
       {/* SECCIÓN DE GRÁFICOS: DONA + BARRAS (COLORES SOBRIOS) */}

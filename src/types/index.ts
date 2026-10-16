@@ -16,6 +16,7 @@ export type ExpenseCategoryId =
   | 'matricula'
   | 'ocio'
   | 'suscripciones'
+  | 'vivienda'
   | 'salud'
   | 'otros';
 
@@ -119,4 +120,60 @@ export interface SemesterConfig {
   events: AcademicEvent[];
 }
 
-export type ActiveTab = 'dashboard' | 'transactions' | 'budget' | 'goals' | 'ai' | 'settings';
+export type PaymentRecurrence = 'ninguna' | 'semanal' | 'mensual';
+
+export interface ScheduledPayment {
+  id: string;
+  description: string;
+  amount: number;
+  category: string;
+  categoryId: CategoryId;
+  dueDate: string; // YYYY-MM-DD
+  recurrence: PaymentRecurrence;
+  reminderDaysBefore: number; // por defecto 1
+  isPaid?: boolean;
+  paidAt?: string;
+  createdAt: number;
+}
+
+export interface ClaudeMovementParam {
+  tipo: 'gasto' | 'ingreso';
+  monto: number;
+  categoria: string;
+  descripcion: string;
+  fecha: string;
+}
+
+export interface ClaudePaymentParam {
+  descripcion: string;
+  monto: number;
+  categoria: string;
+  fecha_vencimiento: string;
+  recurrencia: 'ninguna' | 'semanal' | 'mensual';
+  recordatorio_dias_antes?: number;
+}
+
+export interface ClaudeToolCall {
+  id: string;
+  toolName: 'registrar_movimiento' | 'programar_pago' | 'pedir_aclaracion';
+  parameters: any;
+  status?: 'pending' | 'saved' | 'discarded' | 'edited';
+}
+
+export interface QuickChatMessage {
+  id: string;
+  sender: 'user' | 'assistant';
+  text?: string;
+  toolCalls?: ClaudeToolCall[];
+  timestamp: string;
+}
+
+export type ActiveTab = 
+  | 'dashboard' 
+  | 'chat' 
+  | 'calendar' 
+  | 'transactions' 
+  | 'budget' 
+  | 'goals' 
+  | 'ai' 
+  | 'settings';
