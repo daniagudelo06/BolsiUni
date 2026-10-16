@@ -46,7 +46,6 @@ import {
   SAMPLE_TRANSACTIONS,
   SAMPLE_USER_PROFILE
 } from './data/initialData';
-import { getStoredApiKey } from './services/gemini';
 import { generateFinancialPDFReport } from './services/pdfReport';
 import { exportTransactionsToExcel } from './services/excelReport';
 import { getNextRecurringDate } from './utils/calendarUtils';
@@ -229,9 +228,8 @@ export default function App() {
     }
   };
 
-  // Clave de API de Gemini
-  const [apiKey, setApiKey] = useState<string>(() => getStoredApiKey());
-  const hasApiKey = Boolean(apiKey && apiKey.trim().length > 0);
+  // Estado de IA (conectada en servidor mediante Claude)
+  const hasApiKey = true;
 
   // Estados de Modales
   const [isTxModalOpen, setIsTxModalOpen] = useState(false);
@@ -474,7 +472,6 @@ export default function App() {
         balance={currentBalance}
         onExportPDF={handleExportPDF}
         onExportExcel={handleExportExcel}
-        hasApiKey={hasApiKey}
         onOpenSettings={() => setActiveTab('settings')}
         studentName={userProfile.name}
       />
@@ -606,8 +603,6 @@ export default function App() {
 
         {activeTab === 'settings' && (
           <SettingsView
-            apiKey={apiKey}
-            onApiKeyChange={(k) => setApiKey(k)}
             userProfile={userProfile}
             onUpdateProfile={(p) => setUserProfile(p)}
             semesterConfig={semesterConfig}

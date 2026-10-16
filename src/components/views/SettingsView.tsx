@@ -43,11 +43,7 @@ import {
   Transaction, 
   UserProfile 
 } from '../../types';
-import { saveStoredApiKey, removeStoredApiKey, testApiKey } from '../../services/gemini';
-
 interface SettingsViewProps {
-  apiKey: string;
-  onApiKeyChange: (newKey: string) => void;
   userProfile: UserProfile;
   onUpdateProfile: (profile: UserProfile) => void;
   semesterConfig: SemesterConfig;
@@ -66,8 +62,6 @@ interface SettingsViewProps {
 }
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
-  apiKey,
-  onApiKeyChange,
   userProfile,
   onUpdateProfile,
   semesterConfig,
@@ -77,13 +71,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   allData,
   onImportData
 }) => {
-  const [keyInput, setKeyInput] = useState(apiKey);
-  const [showKey, setShowKey] = useState(false);
-  const [testStatus, setTestStatus] = useState<{ loading: boolean; success?: boolean; message?: string }>({
-    loading: false
-  });
-  const [savedSuccess, setSavedSuccess] = useState(false);
-
   // Perfil form
   const [profileForm, setProfileForm] = useState(userProfile);
   const [profileSaved, setProfileSaved] = useState(false);
@@ -102,30 +89,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   useEffect(() => {
     setSemesterForm(semesterConfig);
   }, [semesterConfig]);
-
-  const handleSaveKey = () => {
-    saveStoredApiKey(keyInput);
-    onApiKeyChange(keyInput.trim());
-    setSavedSuccess(true);
-    setTimeout(() => setSavedSuccess(false), 3000);
-  };
-
-  const handleRemoveKey = () => {
-    removeStoredApiKey();
-    setKeyInput('');
-    onApiKeyChange('');
-    setTestStatus({ loading: false });
-  };
-
-  const handleTestKey = async () => {
-    if (!keyInput.trim()) {
-      setTestStatus({ loading: false, success: false, message: 'Primero pega tu API Key para probarla.' });
-      return;
-    }
-    setTestStatus({ loading: true });
-    const res = await testApiKey(keyInput.trim());
-    setTestStatus({ loading: false, success: res.success, message: res.message });
-  };
 
   const handleSaveProfile = (e: React.FormEvent) => {
     e.preventDefault();
@@ -209,122 +172,43 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </p>
       </div>
 
-      {/* SECCIÓN 1: CONFIGURACIÓN DE GEMINI API KEY */}
-      <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm p-6 space-y-5">
+      {/* SECCIÓN 1: INTELIGENCIA ARTIFICIAL CON CLAUDE */}
+      <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm p-6 space-y-4">
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-violet-600 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-violet-600/20">
-              <Key className="w-6 h-6" />
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-600 flex items-center justify-center text-white shadow-md shadow-emerald-600/20">
+              <Sparkles className="w-6 h-6" />
             </div>
             <div>
-              <h3 className="font-bold text-base sm:text-lg text-slate-900 dark:text-white">
-                API Key de Google Gemini AI
+              <h3 className="font-bold text-base sm:text-lg text-slate-900 dark:text-white flex items-center gap-2">
+                <span>Inteligencia Artificial EduPlata</span>
+                <span className="text-[11px] bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 font-bold px-2.5 py-0.5 rounded-full border border-emerald-500/30">
+                  Claude Haiku
+                </span>
               </h3>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Tu clave se almacena exclusivamente en tu navegador (<code className="text-violet-600 font-mono">localStorage</code>), nunca en servidores ni en el código.
+                Conexión segura de backend gestionada en el servidor. No necesitas ingresar ni pagar claves desde tu navegador.
               </p>
             </div>
           </div>
 
-          <div className="hidden sm:flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 font-semibold bg-emerald-50 dark:bg-emerald-950/60 px-3 py-1 rounded-full border border-emerald-200 dark:border-emerald-800">
+          <div className="flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 font-semibold bg-emerald-50 dark:bg-emerald-950/60 px-3 py-1.5 rounded-full border border-emerald-200 dark:border-emerald-800">
             <ShieldCheck className="w-4 h-4" />
-            <span>100% Privado en tu PC</span>
+            <span>Servidor Activo</span>
           </div>
         </div>
 
-        {/* Guía para obtener la clave */}
-        <div className="p-4 rounded-2xl bg-violet-50/60 dark:bg-violet-950/40 border border-violet-100 dark:border-violet-900/40 space-y-2 text-xs text-slate-700 dark:text-slate-300">
-          <div className="flex items-center justify-between">
-            <span className="font-bold text-violet-900 dark:text-violet-200 flex items-center gap-1.5">
-              <Sparkles className="w-4 h-4 text-violet-600" />
-              ¿Cómo obtener tu clave de Gemini gratis en 30 segundos?
-            </span>
-            <a
-              href="https://aistudio.google.com/apikey"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 text-xs font-bold text-violet-700 dark:text-violet-300 hover:underline"
-            >
-              <span>Abrir Google AI Studio</span>
-              <ExternalLink className="w-3.5 h-3.5" />
-            </a>
-          </div>
-          <ol className="list-decimal list-inside space-y-1 text-slate-600 dark:text-slate-400 pl-1">
-            <li>Entra a <strong className="text-violet-700 dark:text-violet-300">aistudio.google.com/apikey</strong> con tu cuenta de Google.</li>
-            <li>Haz clic en el botón azul <strong className="text-slate-800 dark:text-slate-200">"Create API key"</strong>.</li>
-            <li>Copia la clave generada y pégala en el campo de abajo. ¡No pide tarjeta de crédito y es gratis!</li>
-          </ol>
+        <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/60 text-xs text-slate-700 dark:text-slate-300 space-y-2">
+          <p className="font-medium">
+            ✅ <strong>Chat Rápido:</strong> Registra gastos e ingresos hablando o escribiendo en jerga colombiana (<em>"almuerzo 12 lucas y pasaje 3200"</em>).
+          </p>
+          <p className="font-medium">
+            ✅ <strong>Calendario de Pagos:</strong> Programa pagos futuros sin descontar de tu saldo actual (<em>"el 30 arriendo 650.000"</em>).
+          </p>
+          <p className="font-medium">
+            ✅ <strong>Diagnóstico y Asesor:</strong> Consejos realistas adaptados a tu bolsillo universitario en la pestaña Asistente IA.
+          </p>
         </div>
-
-        {/* Campo de texto de la clave */}
-        <div className="space-y-2">
-          <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-            Tu Gemini API Key
-          </label>
-          <div className="relative">
-            <input
-              type={showKey ? 'text' : 'password'}
-              value={keyInput}
-              onChange={(e) => setKeyInput(e.target.value)}
-              placeholder="AIzaSy..."
-              className="w-full pl-4 pr-12 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 font-mono text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-violet-500"
-            />
-            <button
-              type="button"
-              onClick={() => setShowKey(!showKey)}
-              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1"
-              title={showKey ? 'Ocultar clave' : 'Mostrar clave'}
-            >
-              {showKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-            </button>
-          </div>
-        </div>
-
-        {/* Acciones de la clave */}
-        <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleSaveKey}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs bg-violet-600 hover:bg-violet-500 text-white shadow-md shadow-violet-600/20 transition-all cursor-pointer"
-            >
-              <Check className="w-4 h-4" />
-              <span>Guardar Clave</span>
-            </button>
-            <button
-              onClick={handleTestKey}
-              disabled={testStatus.loading}
-              className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl font-bold text-xs bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-all cursor-pointer"
-            >
-              {testStatus.loading ? 'Verificando...' : 'Probar Conexión'}
-            </button>
-            {apiKey && (
-              <button
-                onClick={handleRemoveKey}
-                className="px-3 py-2.5 rounded-xl text-xs font-semibold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
-              >
-                Eliminar Clave
-              </button>
-            )}
-          </div>
-
-          {savedSuccess && (
-            <span className="text-xs text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
-              <Check className="w-4 h-4" /> ¡Clave guardada en tu navegador!
-            </span>
-          )}
-        </div>
-
-        {testStatus.message && (
-          <div
-            className={`p-3 rounded-2xl text-xs font-medium ${
-              testStatus.success
-                ? 'bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
-                : 'bg-rose-50 dark:bg-rose-950 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800'
-            }`}
-          >
-            {testStatus.message}
-          </div>
-        )}
       </div>
 
       {/* SECCIÓN 2: PERFIL UNIVERSITARIO */}

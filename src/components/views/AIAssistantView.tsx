@@ -22,7 +22,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { AIAnalysisResult, BudgetConfig, ChatMessage, SavingsGoal, Transaction, UserProfile } from '../../types';
-import { analyzeFinancesWithGemini, chatWithFinancialAdvisor } from '../../services/gemini';
+import { analyzeFinancesWithClaude, chatWithClaudeFinancialAdvisor } from '../../services/claudeService';
 import { formatCOP } from '../../utils/formatters';
 
 interface AIAssistantViewProps {
@@ -32,8 +32,8 @@ interface AIAssistantViewProps {
   userProfile: UserProfile;
   aiAnalysis: AIAnalysisResult | null;
   onSaveAnalysis: (result: AIAnalysisResult) => void;
-  hasApiKey: boolean;
-  onOpenSettings: () => void;
+  hasApiKey?: boolean;
+  onOpenSettings?: () => void;
 }
 
 export const AIAssistantView: React.FC<AIAssistantViewProps> = ({
@@ -42,9 +42,7 @@ export const AIAssistantView: React.FC<AIAssistantViewProps> = ({
   goals,
   userProfile,
   aiAnalysis,
-  onSaveAnalysis,
-  hasApiKey,
-  onOpenSettings
+  onSaveAnalysis
 }) => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
@@ -62,39 +60,25 @@ export const AIAssistantView: React.FC<AIAssistantViewProps> = ({
   const [isSending, setIsSending] = useState(false);
   const [chatError, setChatError] = useState<string | null>(null);
 
-  // Ejecutar el diagnóstico completo
+  // Ejecutar el diagnóstico completo con Claude
   const handleRunAnalysis = async () => {
-    if (!hasApiKey) {
-      onOpenSettings();
-      return;
-    }
-
     setIsAnalyzing(true);
     setAnalysisError(null);
 
     try {
-      const result = await analyzeFinancesWithGemini(transactions, budget, goals, userProfile);
+      const result = await analyzeFinancesWithClaude(transactions, budget, goals, userProfile);
       onSaveAnalysis(result);
     } catch (err: any) {
-      if (err.message === 'MISSING_API_KEY') {
-        setAnalysisError('Configura tu API Key de Gemini en la pestaña de Configuración.');
-      } else {
-        setAnalysisError(err.message || 'Error al conectar con la IA de Gemini. Inténtalo de nuevo.');
-      }
+      setAnalysisError(err.message || 'Error al conectar con el Asistente IA. Inténtalo de nuevo.');
     } finally {
       setIsAnalyzing(false);
     }
   };
 
-  // Enviar mensaje en el chat
+  // Enviar mensaje en el chat con Claude
   const handleSendMessage = async (customText?: string) => {
     const textToSend = customText || inputQuestion.trim();
     if (!textToSend || isSending) return;
-
-    if (!hasApiKey) {
-      onOpenSettings();
-      return;
-    }
 
     const userMsg: ChatMessage = {
       id: `user-${Date.now()}`,
@@ -110,7 +94,8 @@ export const AIAssistantView: React.FC<AIAssistantViewProps> = ({
     setChatError(null);
 
     try {
-      const replyText = await chatWithFinancialAdvisor(
+      const replyText = await chatWithClaudeFinancialAdvisor(
+        textToSend,
         newHistory,
         transactions,
         budget,
@@ -127,7 +112,7 @@ export const AIAssistantView: React.FC<AIAssistantViewProps> = ({
 
       setChatMessages((prev) => [...prev, assistantMsg]);
     } catch (err: any) {
-      setChatError(err.message || 'No pude responder en este momento. Revisa tu clave de Gemini.');
+      setChatError(err.message || 'No pude responder en este momento.');
     } finally {
       setIsSending(false);
     }
@@ -136,43 +121,18 @@ export const AIAssistantView: React.FC<AIAssistantViewProps> = ({
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
       
-      {/* BANNER DE FALTA DE API KEY */}
-      {!hasApiKey && (
-        <div className="p-5 rounded-3xl bg-amber-50 dark:bg-amber-950/60 border border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
-          <div className="flex items-start gap-3">
-            <div className="p-2 rounded-xl bg-amber-500 text-white shrink-0">
-              <Key className="w-5 h-5" />
-            </div>
-            <div>
-              <h4 className="font-bold text-sm sm:text-base">
-                Falta configurar tu clave gratuita de Google Gemini AI
-              </h4>
-              <p className="text-xs sm:text-sm mt-0.5 opacity-90">
-                Pega tu API Key en la pestaña de Configuración. Se guarda únicamente en tu navegador (localStorage) y es 100% gratuita.
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={onOpenSettings}
-            className="px-4 py-2 rounded-xl font-bold text-xs bg-amber-600 hover:bg-amber-700 text-white shrink-0 self-start sm:self-center transition-all shadow-xs"
-          >
-            Ir a Configurar Clave
-          </button>
-        </div>
-      )}
-
       {/* CABECERA PRINCIPAL Y BOTÓN DE ANÁLISIS */}
       <div className="bg-gradient-to-r from-violet-700 via-indigo-700 to-purple-800 text-white p-6 sm:p-8 rounded-3xl shadow-xl shadow-violet-900/20 relative overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="relative z-10 max-w-xl">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/20 backdrop-blur-md text-xs font-bold text-amber-300 mb-3 border border-white/20">
             <Sparkles className="w-3.5 h-3.5" />
-            <span>Asistente Inteligente de Bolsillo</span>
+            <span>Asistente Inteligente de Bolsillo • Claude AI</span>
           </div>
           <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
             Diagnóstico Financiero con IA
           </h2>
           <p className="text-xs sm:text-sm text-violet-200 mt-2 leading-relaxed">
-            Gemini analiza en segundos todos tus movimientos de comida, fotocopias, transporte y salidas para decirte exactamente dónde se te va la plata y darte 3 recortes y 3 tips realistas.
+            El Asistente analiza en segundos todos tus movimientos de comida, fotocopias, transporte y salidas para decirte exactamente dónde se te va la plata y darte 3 recortes y 3 tips realistas.
           </p>
         </div>
 

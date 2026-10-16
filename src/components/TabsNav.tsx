@@ -45,8 +45,7 @@ export const TabsNav: React.FC<TabsNavProps> = ({ activeTab, onTabChange, hasApi
       id: 'ai', 
       label: 'Asistente IA', 
       mobileLabel: 'IA',
-      icon: Sparkles, 
-      badge: hasApiKey ? undefined : 'Clave' 
+      icon: Sparkles
     },
     { id: 'settings', label: 'Configuración', mobileLabel: 'Ajustes', icon: Settings },
   ];

@@ -15,7 +15,7 @@ interface NavbarProps {
   balance: number;
   onExportPDF: () => void;
   onExportExcel: () => void;
-  hasApiKey: boolean;
+  hasApiKey?: boolean;
   onOpenSettings: () => void;
   studentName: string;
 }
@@ -26,7 +26,6 @@ export const Navbar: React.FC<NavbarProps> = ({
   balance,
   onExportPDF,
   onExportExcel,
-  hasApiKey,
   onOpenSettings,
   studentName
 }) => {
@@ -64,20 +63,6 @@ export const Navbar: React.FC<NavbarProps> = ({
               {formatCOP(balance)}
             </span>
           </div>
-
-          {/* Estado de API Key de Gemini */}
-          <button
-            onClick={onOpenSettings}
-            title={hasApiKey ? 'Gemini AI Conectado' : 'Configura tu clave de Gemini'}
-            className={`hidden sm:inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-xl font-medium transition-all ${
-              hasApiKey
-                ? 'bg-violet-50 text-violet-700 border border-violet-200 dark:bg-violet-950/60 dark:text-violet-300 dark:border-violet-800/60 hover:bg-violet-100'
-                : 'bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800/60 hover:bg-amber-100 animate-pulse'
-            }`}
-          >
-            <Sparkles className="w-3.5 h-3.5 text-violet-500 dark:text-violet-400" />
-            <span>{hasApiKey ? 'IA Activa' : 'Activar IA'}</span>
-          </button>
 
           {/* Botón Descargar PDF */}
           <button
