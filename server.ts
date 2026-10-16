@@ -494,6 +494,264 @@ Reglas:
     }
   });
 
+  // Helper para construir el contexto financiero del estudiante
+  const buildFinancialContext = (transactions: any[] = [], budget: any = {}, goals: any[] = [], userProfile: any = {}) => {
+    const totalIncome = transactions.filter(t => t.type === 'income').reduce((s, t) => s + (Number(t.amount) || 0), 0);
+    const totalExpense = transactions.filter(t => t.type === 'expense').reduce((s, t) => s + (Number(t.amount) || 0), 0);
+    const balance = totalIncome - totalExpense;
+
+    const expensesByCategory: Record<string, number> = {};
+    for (const t of transactions) {
+      if (t.type === 'expense') {
+        const cat = t.category || 'Otros';
+        expensesByCategory[cat] = (expensesByCategory[cat] || 0) + (Number(t.amount) || 0);
+      }
+    }
+
+    const sortedCategories = Object.entries(expensesByCategory)
+      .sort(([, a], [, b]) => b - a)
+      .map(([cat, amount]) => `- ${cat}: $${amount.toLocaleString('es-CO')} COP`)
+      .join('\n');
+
+    return `
+Estudiante: ${userProfile?.name || 'Estudiante'}
+Universidad: ${userProfile?.university || 'Universidad en Colombia'}
+Carrera: ${userProfile?.career || 'Pregrado'} (${userProfile?.semester || 'Semestre'})
+Ingresos totales registrados: $${totalIncome.toLocaleString('es-CO')} COP
+Gastos totales registrados: $${totalExpense.toLocaleString('es-CO')} COP
+Saldo actual disponible: $${balance.toLocaleString('es-CO')} COP
+Límite mensual fijado: $${(budget?.monthlyExpenseLimit || 0).toLocaleString('es-CO')} COP
+
+Gastos por categoría:
+${sortedCategories || 'Sin gastos registrados todavía.'}
+
+Metas de ahorro:
+${(goals || []).map(g => `- ${g.title}: $${(g.currentAmount || 0).toLocaleString('es-CO')} de $${(g.targetAmount || 0).toLocaleString('es-CO')}`).join('\n') || 'Sin metas activas.'}
+`;
+  };
+
+  // Helper de diagnóstico financiero inteligente de respaldo
+  const generateFallbackAnalysis = (transactions: any[] = [], budget: any = {}, goals: any[] = [], userProfile: any = {}) => {
+    const totalIncome = transactions.filter(t => t.type === 'income').reduce((s, t) => s + (Number(t.amount) || 0), 0);
+    const totalExpense = transactions.filter(t => t.type === 'expense').reduce((s, t) => s + (Number(t.amount) || 0), 0);
+    const balance = totalIncome - totalExpense;
+
+    return {
+      summary: balance >= 0
+        ? `¡Vas bien este mes! Tu saldo actual está en $${balance.toLocaleString('es-CO')} COP. Si mantienes el ritmo y optimizas los gastos en ocio y cafetería, podrás abonar más rápido a tus metas de ahorro sin sufrir a final de mes.`
+        : `Ojo con el bolsillo: tus gastos superan tus ingresos por $${Math.abs(balance).toLocaleString('es-CO')} COP. Es momento de recortar gastos hormiga en salidas, empanadas y domicilios para no quedarte sin plata antes del próximo corte.`,
+      cutSuggestions: [
+        {
+          title: 'Llevar almuerzo preparado a la U',
+          explanation: 'Preparar comida en casa 2 o 3 días a la semana en vez de pagar corrientazos de $14.000 a $18.000 diarios.',
+          potentialSaving: 75000
+        },
+        {
+          title: 'Moderar rondas de polas y cafés en el campus',
+          explanation: 'Ponerte un tope fijo de $25.000 por salida con los amigos de la facultad evita que se esfumen 50 o 60 lucas en una sola tarde.',
+          potentialSaving: 50000
+        },
+        {
+          title: 'Aprovechar fotocopiadoras del centro o biblioteca digital',
+          explanation: 'Descargar lecturas pesadas en PDF o imprimir en fotocopiadoras populares fuera de la U puede ahorrarte hasta un 40% en papel.',
+          potentialSaving: 25000
+        }
+      ],
+      savingsTips: [
+        'Recarga tu tarjeta de transporte público (TransMilenio, Metro, MIO) al inicio de semana con el valor exacto para no desviar la plata.',
+        'Aprovecha los descuentos de estudiante en Spotify, YouTube Premium y licencias de software con tu correo institucional (.edu.co).',
+        'Aparta el 10% de tu mesada o salario apenas te llegue antes de empezar a gastar en antojos.'
+      ],
+      analyzedAt: new Date().toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' })
+    };
+  };
+
+  // Endpoint: Diagnóstico Financiero con Claude
+  app.post('/api/claude/analyze', async (req: Request, res: Response) => {
+    try {
+      const { transactions = [], budget = {}, goals = [], userProfile = {} } = req.body;
+      const apiKey = process.env.ANTHROPIC_API_KEY;
+
+      if (!apiKey || apiKey.trim() === '' || apiKey === 'MY_ANTHROPIC_API_KEY') {
+        const fallback = generateFallbackAnalysis(transactions, budget, goals, userProfile);
+        return res.json({ success: true, result: fallback, mode: 'heuristic' });
+      }
+
+      const financialContext = buildFinancialContext(transactions, budget, goals, userProfile);
+      const systemPrompt = `Eres el asesor financiero senior de EduPlata, una app de finanzas para universitarios colombianos.
+Tu tarea es analizar los datos financieros del estudiante y generar un diagnóstico con recomendaciones realistas en jerga universitaria colombiana cercana, constructiva y juvenil (sin vulgaridad).
+
+Debes responder ÚNICAMENTE con un objeto JSON válido con esta estructura exacta:
+{
+  "summary": "Resumen de 2-3 oraciones sobre su situación financiera actual",
+  "cutSuggestions": [
+    { "title": "Nombre corto del recorte", "explanation": "Por qué y cómo recortar", "potentialSaving": 50000 }
+  ],
+  "savingsTips": [
+    "Consejo 1 práctico para estudiantes en Colombia",
+    "Consejo 2...",
+    "Consejo 3..."
+  ],
+  "analyzedAt": "16 oct 2026"
+}
+Reglas:
+- cutSuggestions debe tener exactamente 3 elementos. potentialSaving debe ser un número entero en COP.
+- savingsTips debe tener exactamente 3 consejos.
+- No incluyas texto antes ni después del bloque JSON.`;
+
+      const candidateModels = ['claude-haiku-5-5', 'claude-3-5-haiku-20241022', 'claude-3-haiku-20240307'];
+      let claudeResponseText = '';
+
+      for (const modelName of candidateModels) {
+        try {
+          const resp = await fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST',
+            headers: {
+              'x-api-key': apiKey.trim(),
+              'anthropic-version': '2023-06-01',
+              'content-type': 'application/json'
+            },
+            body: JSON.stringify({
+              model: modelName,
+              max_tokens: 1500,
+              system: systemPrompt,
+              messages: [
+                {
+                  role: 'user',
+                  content: `Analiza mis finanzas universitarias y dame el diagnóstico en JSON:\n\n${financialContext}`
+                }
+              ]
+            })
+          });
+
+          if (resp.ok) {
+            const data: any = await resp.json();
+            const textBlock = data.content?.find((c: any) => c.type === 'text');
+            if (textBlock?.text) {
+              claudeResponseText = textBlock.text;
+              break;
+            }
+          }
+        } catch (e) {
+          console.warn('Error llamando a Claude para análisis:', e);
+        }
+      }
+
+      if (claudeResponseText) {
+        const cleaned = claudeResponseText.replace(/```json/g, '').replace(/```/g, '').trim();
+        try {
+          const parsed = JSON.parse(cleaned);
+          return res.json({ success: true, result: parsed, mode: 'claude' });
+        } catch (jsonErr) {
+          console.warn('Error parseando JSON de Claude, usando fallback:', jsonErr);
+        }
+      }
+
+      // Si no pudo obtener JSON válido de Claude, fallback
+      const fallback = generateFallbackAnalysis(transactions, budget, goals, userProfile);
+      return res.json({ success: true, result: fallback, mode: 'heuristic_fallback' });
+
+    } catch (err: any) {
+      console.error('Error en /api/claude/analyze:', err);
+      const fallback = generateFallbackAnalysis();
+      return res.json({ success: true, result: fallback, mode: 'error_fallback' });
+    }
+  });
+
+  // Endpoint: Asesor Financiero Universitario interactivo con Claude
+  app.post('/api/claude/financial-advisor', async (req: Request, res: Response) => {
+    try {
+      const { question, history = [], transactions = [], budget = {}, goals = [], userProfile = {} } = req.body;
+
+      if (!question || typeof question !== 'string') {
+        return res.status(400).json({ success: false, error: 'Pregunta requerida.' });
+      }
+
+      const apiKey = process.env.ANTHROPIC_API_KEY;
+      const financialContext = buildFinancialContext(transactions, budget, goals, userProfile);
+
+      if (!apiKey || apiKey.trim() === '' || apiKey === 'MY_ANTHROPIC_API_KEY') {
+        // Respuesta heurística amigable
+        const totalExpense = transactions.filter((t: any) => t.type === 'expense').reduce((s: number, t: any) => s + (Number(t.amount) || 0), 0);
+        const totalIncome = transactions.filter((t: any) => t.type === 'income').reduce((s: number, t: any) => s + (Number(t.amount) || 0), 0);
+        const balance = totalIncome - totalExpense;
+
+        let answer = `¡Qué más ${userProfile?.name ? userProfile.name.split(' ')[0] : 'parcero'}! `;
+        if (question.toLowerCase().includes('concierto') || question.toLowerCase().includes('alcanza')) {
+          answer += balance > 100000 
+            ? `Revisando tu bolsillo, tienes un saldo de $${balance.toLocaleString('es-CO')} COP disponible. Si el plan no supera tus compromisos de la semana, te podrías dar el gusto, pero procura dejar al menos un colchón de $50.000 para fotocopias y pasajes.`
+            : `Haciendo cuentas con tus números, tu saldo actual está en $${balance.toLocaleString('es-CO')} COP. En este momento te recomendaría aguantar un poco o buscar boleta más económica, porque podrías quedar apretado para los pasajes de la semana.`;
+        } else if (question.toLowerCase().includes('ahorr') || question.toLowerCase().includes('consejo')) {
+          answer += `El mejor truco para la universidad es la regla del 'porta': llevar almuerzo 3 días te ahorra más de $45.000 semanales. Además, define un monto fijo para salir los viernes y no lleves tarjetas de crédito al parche.`;
+        } else {
+          answer += `Actualmente tienes un saldo de $${balance.toLocaleString('es-CO')} COP y has gastado $${totalExpense.toLocaleString('es-CO')} este mes. Si necesitas planear un gasto específico, cuéntame cuánto cuesta y te digo cómo impacta tu presupuesto.`;
+        }
+
+        return res.json({ success: true, answer, mode: 'heuristic' });
+      }
+
+      const systemPrompt = `Eres el asesor financiero personal de EduPlata para estudiantes universitarios colombianos.
+Tienes acceso a la información real de gastos, ingresos, presupuesto y metas del estudiante:
+${financialContext}
+
+Instrucciones:
+- Responde en español colombiano cercano, amigable, cálido y juvenil, pero con criterio financiero responsable.
+- Cita cifras exactas en pesos colombianos con formato $1.000 COP cuando sea relevante.
+- Da respuestas prácticas y concisas (2 a 4 párrafos cortos).
+- Nunca inventes que el estudiante tiene más plata de la que figura en su saldo.`;
+
+      const candidateModels = ['claude-haiku-5-5', 'claude-3-5-haiku-20241022', 'claude-3-haiku-20240307'];
+      let advisorAnswer = '';
+
+      const formattedMessages: Array<{ role: 'user' | 'assistant'; content: string }> = [];
+      for (const h of history) {
+        if (h.sender === 'user' && h.text) formattedMessages.push({ role: 'user', content: h.text });
+        else if (h.sender === 'assistant' && h.text) formattedMessages.push({ role: 'assistant', content: h.text });
+      }
+      formattedMessages.push({ role: 'user', content: question });
+
+      for (const modelName of candidateModels) {
+        try {
+          const resp = await fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST',
+            headers: {
+              'x-api-key': apiKey.trim(),
+              'anthropic-version': '2023-06-01',
+              'content-type': 'application/json'
+            },
+            body: JSON.stringify({
+              model: modelName,
+              max_tokens: 1000,
+              system: systemPrompt,
+              messages: formattedMessages
+            })
+          });
+
+          if (resp.ok) {
+            const data: any = await resp.json();
+            const textBlock = data.content?.find((c: any) => c.type === 'text');
+            if (textBlock?.text) {
+              advisorAnswer = textBlock.text;
+              break;
+            }
+          }
+        } catch (e) {
+          console.warn('Error llamando a Claude para asesor financiero:', e);
+        }
+      }
+
+      if (!advisorAnswer) {
+        advisorAnswer = 'Lo siento, no pude conectar con Claude en este instante. Intenta nuevamente en un momento.';
+      }
+
+      return res.json({ success: true, answer: advisorAnswer, mode: 'claude' });
+
+    } catch (err: any) {
+      console.error('Error en /api/claude/financial-advisor:', err);
+      res.status(500).json({ success: false, error: 'Error procesando tu consulta financiera.' });
+    }
+  });
+
   // Montar Vite middlewares en desarrollo o servir dist en producción
   if (process.env.NODE_ENV !== 'production') {
     const { createServer } = await import('vite');
